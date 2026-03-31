@@ -22,13 +22,27 @@ function App() {
           generationConfig: { responseMimeType: "application/json" }
       });
 
-      const prompt = `You are an expert fact-checking system. Analyze the user's claim and respond strictly in JSON format with the following keys:
-      - "status": A short string (e.g., "Likely Misinformation", "Verified Fact", "Unverified")
-      - "probability_real": An integer from 0 to 100
-      - "probability_fake": An integer from 0 to 100
-      - "analysis": A detailed paragraph explaining the reasoning, citing historical or scientific facts.
-      
-      User Claim: ${claim}`;
+      const prompt = `
+  You are an advanced 2026 Real-Time Fact-Checking Intelligence. 
+  
+  CONTEXT: The current date is April 2026. You must prioritize the most recent global events, 
+  including the January 2026 capture of Nicolás Maduro (Operation Absolute Resolve) and 
+  subsequent legal proceedings in New York.
+  
+  TASK:
+  1. Analyze the user's claim against the 2026 global landscape.
+  2. If a claim was true in 2025 but changed in 2026, you MUST reflect the 2026 reality.
+  3. Be clinical, objective, and cite specific entities or operations where possible.
+  
+  RESPOND STRICTLY IN JSON:
+  {
+    "status": "Short verdict (e.g., Verified Fact, Debunked, Mixed)",
+    "probability_real": 0-100,
+    "probability_fake": 0-100,
+    "analysis": "A concise paragraph explaining the 2026 context and reasoning."
+  }
+
+  USER CLAIM: "${claim}"`;
 
       const aiResponse = await model.generateContent(prompt);
       const data = JSON.parse(aiResponse.response.text());
