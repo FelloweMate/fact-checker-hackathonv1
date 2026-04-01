@@ -121,7 +121,31 @@ const styles = `
   .footer-note { text-align: center; font-size: 11px; font-family: 'JetBrains Mono', monospace; color: #2A2E44; margin-top: 2rem; }
 `;
 
-// New state for dynamic suggestions
+
+const VERDICTS = {
+  FAKE: { cls: "fake", icon: "✕", title: "Likely Misinformation", label: "FAKE NEWS DETECTED" },
+  REAL: { cls: "real", icon: "✓", title: "Credible & Verified", label: "VERIFIED AS REAL" },
+  UNCERTAIN: { cls: "uncertain", icon: "?", title: "Inconclusive", label: "UNVERIFIABLE" },
+};
+
+// SVG Icons
+const IconText = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="1.5" rx="0.75" fill="currentColor"/><rect x="1" y="5.5" width="9" height="1.5" rx="0.75" fill="currentColor"/><rect x="1" y="9" width="11" height="1.5" rx="0.75" fill="currentColor"/></svg>;
+const IconImage = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1.5" width="12" height="11" rx="2" stroke="currentColor" strokeWidth="1.2" fill="none"/><circle cx="4.5" cy="5" r="1.2" fill="currentColor"/><path d="M1.5 10L4.5 7L7 9.5L9.5 7L12.5 10" stroke="currentColor" strokeWidth="1.2" fill="none"/></svg>;
+const IconPDF = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 1.5H8.5L11.5 4.5V12.5H2.5V1.5Z" stroke="currentColor" strokeWidth="1.2" fill="none"/><path d="M8.5 1.5V4.5H11.5" stroke="currentColor" strokeWidth="1.2" fill="none"/><rect x="4" y="7" width="6" height="1" rx="0.5" fill="currentColor"/><rect x="4" y="9.5" width="4" height="1" rx="0.5" fill="currentColor"/></svg>;
+const IconLink = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M6 8L8 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M4 8.5C3.5 8.5 2.5 8 2.5 6.5C2.5 5 3.5 4.5 4 4.5H6.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M10 5.5C10.5 5.5 11.5 6 11.5 7.5C11.5 9 10.5 9.5 10 9.5H7.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>;
+const IconMenu = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>;
+const IconSparkles = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v18M3 12h18M16.5 7.5l-9 9M7.5 7.5l9 9"/></svg>;
+
+export default function App() {
+  const [tab, setTab] = useState("text");
+  const [text, setText] = useState("");
+  const [url, setUrl] = useState("");
+  const [file, setFile] = useState(null);
+  const [isDrag, setIsDrag] = useState(false);
+  const [status, setStatus] = useState("idle");
+  const [result, setResult] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // New state for dynamic suggestions
   const [suggestions, setSuggestions] = useState(["Scanning web for trending claims..."]);
 
   // Fetch real-time rumors on page load
@@ -166,29 +190,6 @@ const styles = `
     fetchTrendingRumors();
   }, []); // Empty array means this runs exactly once when the page loads
 
-const VERDICTS = {
-  FAKE: { cls: "fake", icon: "✕", title: "Likely Misinformation", label: "FAKE NEWS DETECTED" },
-  REAL: { cls: "real", icon: "✓", title: "Credible & Verified", label: "VERIFIED AS REAL" },
-  UNCERTAIN: { cls: "uncertain", icon: "?", title: "Inconclusive", label: "UNVERIFIABLE" },
-};
-
-// SVG Icons
-const IconText = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="1.5" rx="0.75" fill="currentColor"/><rect x="1" y="5.5" width="9" height="1.5" rx="0.75" fill="currentColor"/><rect x="1" y="9" width="11" height="1.5" rx="0.75" fill="currentColor"/></svg>;
-const IconImage = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1.5" width="12" height="11" rx="2" stroke="currentColor" strokeWidth="1.2" fill="none"/><circle cx="4.5" cy="5" r="1.2" fill="currentColor"/><path d="M1.5 10L4.5 7L7 9.5L9.5 7L12.5 10" stroke="currentColor" strokeWidth="1.2" fill="none"/></svg>;
-const IconPDF = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 1.5H8.5L11.5 4.5V12.5H2.5V1.5Z" stroke="currentColor" strokeWidth="1.2" fill="none"/><path d="M8.5 1.5V4.5H11.5" stroke="currentColor" strokeWidth="1.2" fill="none"/><rect x="4" y="7" width="6" height="1" rx="0.5" fill="currentColor"/><rect x="4" y="9.5" width="4" height="1" rx="0.5" fill="currentColor"/></svg>;
-const IconLink = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M6 8L8 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M4 8.5C3.5 8.5 2.5 8 2.5 6.5C2.5 5 3.5 4.5 4 4.5H6.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M10 5.5C10.5 5.5 11.5 6 11.5 7.5C11.5 9 10.5 9.5 10 9.5H7.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>;
-const IconMenu = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>;
-const IconSparkles = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v18M3 12h18M16.5 7.5l-9 9M7.5 7.5l9 9"/></svg>;
-
-export default function App() {
-  const [tab, setTab] = useState("text");
-  const [text, setText] = useState("");
-  const [url, setUrl] = useState("");
-  const [file, setFile] = useState(null);
-  const [isDrag, setIsDrag] = useState(false);
-  const [status, setStatus] = useState("idle");
-  const [result, setResult] = useState(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const ProbBar = ({ label, value, type }) => (
   <div className="prob-row" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
     <div className="prob-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -408,7 +409,7 @@ export default function App() {
                   <div className="suggestions-wrap">
                     <div className="sugg-label">Trending Searches</div>
                     <div className="sugg-list">
-                      {SUGGESTIONS.map((sugg, i) => (
+                      {suggestions.map((sugg, i) => (
                         <div key={i} className="sugg-pill" onClick={() => handleSuggestionClick(sugg)}>
                           <IconSparkles /> {sugg}
                         </div>
