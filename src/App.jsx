@@ -121,12 +121,50 @@ const styles = `
   .footer-note { text-align: center; font-size: 11px; font-family: 'JetBrains Mono', monospace; color: #2A2E44; margin-top: 2rem; }
 `;
 
-const SUGGESTIONS = [
-  "Did the US capture Nicolás Maduro in 2026?",
-  "Does the new Gemini 3 AI write its own code?",
-  "Is the Earth officially flat?",
-  "New study claims coffee cures the common cold"
-];
+// New state for dynamic suggestions
+  const [suggestions, setSuggestions] = useState(["Scanning web for trending claims..."]);
+
+  // Fetch real-time rumors on page load
+  useEffect(() => {
+    const fetchTrendingRumors = async () => {
+      try {
+        const model = genAI.getGenerativeModel({
+          model: "gemini-2.5-flash",
+          tools: [{ googleSearch: {} }] // Give it internet access
+        });
+
+        const prompt = `
+          Search the live internet for 4 current trending news stories, popular rumors, or viral claims being discussed today. 
+          Return ONLY a raw JSON array containing exactly 4 short strings (max 8 words each). 
+          DO NOT include any markdown formatting or code blocks like \`\`\`json.
+          Example format: ["Rumor about new tech release", "Viral claim about politician", "Trending health myth", "Recent global event"]
+        `;
+
+        const response = await model.generateContent(prompt);
+        let rawText = response.response.text();
+        
+        // Clean up markdown just in case
+        rawText = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
+        
+        const liveSuggestions = JSON.parse(rawText);
+        
+        if (Array.isArray(liveSuggestions)) {
+          setSuggestions(liveSuggestions);
+        }
+      } catch (error) {
+        console.error("Failed to fetch trending:", error);
+        // Fallback if the API is busy
+        setSuggestions([
+          "Economy hits record high today",
+          "New study on coffee and health",
+          "Tech CEO announces resignation",
+          "Major update to AI models released"
+        ]);
+      }
+    };
+
+    fetchTrendingRumors();
+  }, []); // Empty array means this runs exactly once when the page loads
 
 const VERDICTS = {
   FAKE: { cls: "fake", icon: "✕", title: "Likely Misinformation", label: "FAKE NEWS DETECTED" },
@@ -151,6 +189,17 @@ export default function App() {
   const [status, setStatus] = useState("idle");
   const [result, setResult] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const ProbBar = ({ label, value, type }) => (
+  <div className="prob-row" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+    <div className="prob-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <span className="prob-label">{label}</span>
+      <span className="prob-value">{value}%</span>
+    </div>
+    <div className="bar-track">
+      <div className={`bar-fill ${type}`} style={{ width: `${value}%` }} />
+    </div>
+  </div>
+    );
   
   // Load history from LocalStorage
   const [history, setHistory] = useState(() => {
@@ -212,15 +261,30 @@ export default function App() {
     try {
       // NOTE: Using 1.5-flash as the fallback you requested earlier!
       const model = genAI.getGenerativeModel({
-        model: "gemini-2.5-flash", 
-        generationConfig: { responseMimeType: "application/json" }
+        model: "gemini-2.5-flash",
+        tools: [{ googleSearch: {}}], 
       });
 
       const systemPrompt = `
-        You are an advanced 2026 Real-Time Fact-Checking Intelligence.
-        CONTEXT: The current date is April 2026.
-        CRITICAL RULE: If the user simply says hello or types random gibberish, return "UNCERTAIN" and ask for a real claim.
-        RESPOND STRICTLY IN JSON: {"verdict": "FAKE"|"REAL"|"UNCERTAIN", "probability_real": 0-100, "probability_fake": 0-100, "reasoning": "A short paragraph.", "sources": ["url1"]}
+        You are an elite Real-Time Fact-Checking Intelligence Engine.
+        
+        CRITICAL DIRECTIVE - THE "INTERNET OVERRIDES INTERNAL" RULE:
+        1. When evaluating a claim, you must ALWAYS use the Google Search tool to retrieve current, real-time data.
+        2. Compare the live internet search results against your internal training data.
+        3. IF THERE IS ANY CONFLICT, THE LIVE INTERNET ALWAYS WINS. You must prioritize, prefer, and ground your final verdict entirely on the most recent information found on the live web, explicitly ignoring outdated internal knowledge.
+        
+        EDGE CASES:
+        If the input is a greeting (e.g., "hi", "hello"), conversational, or generic gibberish, return "UNCERTAIN" and ask the user to provide a specific claim to check. Do not search the web for greetings.
+        
+        STRICT OUTPUT FORMAT:
+        You must respond ONLY with a valid, raw JSON object. NO markdown formatting. NO code blocks (like \`\`\`json).
+        {
+          "verdict": "REAL" | "FAKE" | "UNCERTAIN",
+          "probability_real": <integer 0-100>,
+          "probability_fake": <integer 0-100>,
+          "reasoning": "A clear, objective 2-3 sentence explanation. If your internal data was outdated, explicitly state that the live web search confirmed the current facts.",
+          "sources": ["List the actual trusted domains or specific search terms you used to verify this on the live internet"]
+        }
       `;
 
       let contents = [];
@@ -242,7 +306,12 @@ export default function App() {
       }
 
       const aiResponse = await model.generateContent(contents);
-      const data = JSON.parse(aiResponse.response.text());
+      let rawText = aiResponse.response.text();
+      
+      // Safety net: Strip out markdown blocks if the AI includes them
+      rawText = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
+      
+      const data = JSON.parse(rawText);
       
       setResult(data);
       
@@ -395,11 +464,19 @@ export default function App() {
 
               <div className="result-body">
                 <div>
+                  <div className="section-label">Probability breakdown</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "1rem" }}>
+                    <ProbBar label="Probability — Real" value={result.probability_real} type="real" />
+                    <ProbBar label="Probability — Fake" value={result.probability_fake} type="fake" />
+                  </div>
+                </div>
+                
+                <div>
                   <div className="section-label">Analysis & Reasoning</div>
                   <p className="reasoning-text">{result.reasoning}</p>
                 </div>
                 <button className="reset-btn" onClick={() => { setStatus("idle"); setResult(null); }}>← Analyze another claim</button>
-              </div>
+            </div>
             </div>
           )}
           
